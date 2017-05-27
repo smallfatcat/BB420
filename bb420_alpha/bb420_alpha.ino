@@ -11,16 +11,35 @@ const int MODE_MANUAL = 1;
 const int MODE_SETTINGS = 2;
 const int LEFT = 0;
 const int RIGHT = 1;
+
 // Button Pins
 const int buttonA = 5;
 const int buttonB = 4;
 const int buttonC = 3;
 const int buttonD = 2;
 
+// Stepper Pins
+const int stepPin = 6;
+const int dirPin = 7;
+const int mode0Pin = 8;
+const int mode1Pin = 9;
+const int mode2Pin = 10;
+
+
 // Initial States
+volatile long pulseCount = 0;
+int PPS = 2000;
+
+int mode0State = LOW;
+int mode1State = LOW;
+int mode2State = HIGH;
+
 boolean modeButtonHasReset = true;
 boolean selectButtonHasReset = true;
+boolean leftButtonHasReset = true;
+boolean rightButtonHasReset = true;
 boolean autoPaused = true;
+boolean emergencyStop = true;
 
 int buttonStateA;
 int buttonStateB;
@@ -47,6 +66,14 @@ long railPos = 0;
 
 
 void setup() {
+  //setup Timer1
+  cli();
+  TCCR1A = 0b00000000;
+  TCCR1B = 0b00001001;
+  TIMSK1 |= 0b00000010;       //set for output compare interrupt
+  OCR1A = 16000000/PPS - 1; 
+  sei();                      //enables interrups. Use cli() to turn them off
+  
   lcd.begin(16,2); // Initializes the interface to the LCD screen, and specifies the dimensions (width and height) of the display
   lcd.setBacklightPin(3,POSITIVE);
   lcd.setBacklight(HIGH);
@@ -55,6 +82,19 @@ void setup() {
   pinMode(buttonB, INPUT_PULLUP);
   pinMode(buttonC, INPUT_PULLUP);
   pinMode(buttonD, INPUT_PULLUP);
+  pinMode(stepPin, OUTPUT);
+  pinMode(dirPin, OUTPUT);
+  pinMode(mode0Pin, OUTPUT);
+  pinMode(mode1Pin, OUTPUT);
+  pinMode(mode2Pin, OUTPUT);
+  digitalWrite(mode0Pin, mode0State);
+  digitalWrite(mode1Pin, mode1State);
+  digitalWrite(mode2Pin, mode2State);
+  digitalWrite(dirPin, railDirection);
+  
+
+  
+  
 }
 
 void loop() {
@@ -143,8 +183,16 @@ void loop() {
     } 
     railDirection = LEFT;
     if(mode==MODE_MANUAL){
-      moveRail();
+       if(leftButtonHasReset){
+        //moveRail();
+        PPS-=10;
+        OCR1A = 16000000/PPS - 1;
+      }
     }
+    leftButtonHasReset = false;
+  }
+  if(buttonStateB==HIGH){
+    leftButtonHasReset = true;
   }
   // Actions for RIGHT button
   if(buttonStateC==LOW){
@@ -154,8 +202,16 @@ void loop() {
     }
     railDirection = RIGHT;
     if(mode==MODE_MANUAL){
-      moveRail();
+      if(rightButtonHasReset){
+        //moveRail();
+        PPS+=10;
+        OCR1A = 16000000/PPS - 1;
+      }
     }
+    rightButtonHasReset = false;
+  }
+  if(buttonStateC==HIGH){
+    rightButtonHasReset = true;
   }
   // Actions for SELECT button
   if(buttonStateD==LOW){
@@ -167,7 +223,10 @@ void loop() {
       // invert pause flag
      if(mode==MODE_AUTO){
        autoPaused = !autoPaused;
-      }
+     }
+     if(mode==MODE_MANUAL){
+       emergencyStop = !emergencyStop;
+     }
     }
     selectButtonHasReset = false;
     
@@ -195,7 +254,8 @@ void loop() {
   }
   if(mode==MODE_MANUAL){
     if(drawFrame){
-      lcd.print("MANUAL");
+      lcd.print("MAN, PPS: ");
+      lcd.print(PPS);
     }
   }
   if(mode==MODE_SETTINGS){
@@ -211,8 +271,8 @@ void loop() {
     if(railDirection == RIGHT){
       lcd.print("R");
     }
-    lcd.print("POS: ");
-    lcd.print(railPos);
+    lcd.print("P: ");
+    lcd.print(pulseCount);
   }
   //delay(1);
 }
@@ -224,4 +284,16 @@ void moveRail(){
   if(railDirection == RIGHT){
     railPos++;
   }
+}
+
+ISR(TIMER1_COMPA_vect) {
+    if(!emergencyStop){
+      digitalWrite(stepPin, HIGH);       // Driver only looks for rising edge
+      digitalWrite(stepPin, LOW);        //  DigitalWrite executes in 16 us  
+      pulseCount++;
+      //Generate Rising Edge
+      //PORTL =  PORTL |= 0b00001000;   //Direct Port manipulation executes in 450 ns  => 16x faster!
+      //PORTL =  PORTL &= 0b11110111;
+      //Location = Location + 250 * DirFlag ;  //Updates Location (based on 4000 Pulses/mm)
+    }
 }
