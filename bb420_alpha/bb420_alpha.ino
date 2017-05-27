@@ -1,10 +1,6 @@
-/*
-* Ultrasonic Sensor HC-SR04 and Arduino Tutorial
-*
-* Crated by Dejan Nedelkovski,
-* www.HowToMechatronics.com
-*
-*/
+// BB420 alpha version
+
+
 #include <Wire.h>
 #include <LCD.h>
 #include <LiquidCrystal_I2C.h> // includes the LiquidCrystal Library
