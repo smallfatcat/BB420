@@ -19,6 +19,8 @@ const int buttonD = 2;
 
 // Initial States
 boolean modeButtonHasReset = true;
+boolean selectButtonHasReset = true;
+boolean autoPaused = true;
 
 int buttonStateA;
 int buttonStateB;
@@ -161,6 +163,17 @@ void loop() {
       lcd.setCursor(3,0); 
       lcd.print("D"); 
     }
+    if(selectButtonHasReset){
+      // invert pause flag
+     if(mode==MODE_AUTO){
+       autoPaused = !autoPaused;
+      }
+    }
+    selectButtonHasReset = false;
+    
+  }
+  if(buttonStateD==HIGH){
+    selectButtonHasReset = true;
   }
   // Mode actions
   if(drawFrame){
@@ -168,18 +181,26 @@ void loop() {
   }
   if(mode==MODE_AUTO){
     if(drawFrame){
-      lcd.print("MODE: AUTO");
+      lcd.print("AUTO ");
+      if(autoPaused){
+        lcd.print("PAUSED");
+      }
+      else{
+        lcd.print("RUNNING");
+      }
     }
-    moveRail();
+    if(!autoPaused){
+      moveRail();
+    }
   }
   if(mode==MODE_MANUAL){
     if(drawFrame){
-      lcd.print("MODE: MANUAL");
+      lcd.print("MANUAL");
     }
   }
   if(mode==MODE_SETTINGS){
     if(drawFrame){
-      lcd.print("MODE: SETTINGS");
+      lcd.print("SETTINGS");
     }
   }
   if(drawFrame){
