@@ -8,7 +8,7 @@ LiquidCrystal_I2C	lcd(0x27,2,1,0,4,5,6,7); // 0x27 is the I2C bus address for an
 // Constants
 const int MODE_AUTO = 0;
 const int MODE_MANUAL = 1;
-const int MODE_SETTINGS = 2;
+const int MODE_SETPPS = 2;
 const int LEFT = 0;
 const int RIGHT = 1;
 
@@ -60,7 +60,7 @@ unsigned long debounceDelay = 50;
 unsigned long lastFrameTime = 0;
 
 int mode = MODE_AUTO;
-int railDirection = RIGHT;
+int railDirection = LEFT;
 int frame = 0;
 long railPos = 0;
 
@@ -158,73 +158,74 @@ void loop() {
   }
   lastButtonStateD = readingD;
   
+  //
   // Actions for MODE button
   if(buttonStateA==LOW){
-    if(drawFrame){
-      lcd.setCursor(0,0); 
-      lcd.print("A");
-    }
     if(modeButtonHasReset){
       mode++;
     }
     modeButtonHasReset = false;
-    if(mode > MODE_SETTINGS){
+    if(mode > MODE_SETPPS){
       mode = MODE_AUTO;
     }
   }
   if(buttonStateA==HIGH){
     modeButtonHasReset = true;
   }
+  
+  //
   // Actions for LEFT button
   if(buttonStateB==LOW){
-    if(drawFrame){
-      lcd.setCursor(1,0); 
-      lcd.print("B");
-    } 
-    railDirection = LEFT;
-    if(mode==MODE_MANUAL){
-       if(leftButtonHasReset){
-        //moveRail();
-        PPS-=10;
-        OCR1A = 16000000/PPS - 1;
+    if(leftButtonHasReset){
+      if(mode==MODE_AUTO || mode==MODE_MANUAL){
+        railDirection = LEFT;
+        digitalWrite(dirPin, railDirection);
       }
+      if(mode==MODE_SETPPS){
+          PPS-=10;
+          OCR1A = 16000000/PPS - 1;
+      }
+    }
+    if(mode==MODE_MANUAL){
+       moveRail();
     }
     leftButtonHasReset = false;
   }
   if(buttonStateB==HIGH){
     leftButtonHasReset = true;
   }
+  
+  //
   // Actions for RIGHT button
   if(buttonStateC==LOW){
-    if(drawFrame){
-      lcd.setCursor(2,0); 
-      lcd.print("C");
-    }
-    railDirection = RIGHT;
-    if(mode==MODE_MANUAL){
-      if(rightButtonHasReset){
-        //moveRail();
-        PPS+=10;
-        OCR1A = 16000000/PPS - 1;
+    if(rightButtonHasReset){
+      if(mode==MODE_AUTO || mode==MODE_MANUAL){
+        railDirection = RIGHT;
+        digitalWrite(dirPin, railDirection);
       }
+      if(mode==MODE_SETPPS){
+          PPS+=10;
+          OCR1A = 16000000/PPS - 1;
+      }
+    }
+    if(mode==MODE_MANUAL){
+       moveRail();
     }
     rightButtonHasReset = false;
   }
   if(buttonStateC==HIGH){
     rightButtonHasReset = true;
   }
+  
+  //
   // Actions for SELECT button
   if(buttonStateD==LOW){
-    if(drawFrame){
-      lcd.setCursor(3,0); 
-      lcd.print("D"); 
-    }
     if(selectButtonHasReset){
       // invert pause flag
      if(mode==MODE_AUTO){
        autoPaused = !autoPaused;
      }
-     if(mode==MODE_MANUAL){
+     if(mode==MODE_MANUAL || mode==MODE_SETPPS){
        emergencyStop = !emergencyStop;
      }
     }
@@ -254,24 +255,25 @@ void loop() {
   }
   if(mode==MODE_MANUAL){
     if(drawFrame){
-      lcd.print("MAN, PPS: ");
+      lcd.print("MAN POS: ");
+      lcd.print(railPos);
+    }
+  }
+  if(mode==MODE_SETPPS){
+    if(drawFrame){
+      lcd.print("SET PPS: ");
       lcd.print(PPS);
     }
   }
-  if(mode==MODE_SETTINGS){
-    if(drawFrame){
-      lcd.print("SETTINGS");
-    }
-  }
   if(drawFrame){
-    lcd.setCursor(4,0);
+    lcd.setCursor(0,0);
     if(railDirection == LEFT){
       lcd.print("L");
     }
     if(railDirection == RIGHT){
       lcd.print("R");
     }
-    lcd.print("P: ");
+    lcd.print(", P: ");
     lcd.print(pulseCount);
   }
   //delay(1);
@@ -290,7 +292,13 @@ ISR(TIMER1_COMPA_vect) {
     if(!emergencyStop){
       digitalWrite(stepPin, HIGH);       // Driver only looks for rising edge
       digitalWrite(stepPin, LOW);        //  DigitalWrite executes in 16 us  
-      pulseCount++;
+      if(railDirection == LEFT){
+        pulseCount++;
+      }
+      else{
+        pulseCount--;
+      }
+      
       //Generate Rising Edge
       //PORTL =  PORTL |= 0b00001000;   //Direct Port manipulation executes in 450 ns  => 16x faster!
       //PORTL =  PORTL &= 0b11110111;
