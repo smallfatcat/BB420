@@ -36,6 +36,8 @@ unsigned long lastDebounceTimeC = 0;
 unsigned long lastDebounceTimeD = 0;
 unsigned long debounceDelay = 50;
 
+unsigned long lastFrameTime = 0;
+
 int mode = MODE_AUTO;
 int railDirection = RIGHT;
 int frame = 0;
@@ -54,11 +56,13 @@ void setup() {
 }
 
 void loop() {
+  unsigned long currentFrameTime = millis();
   boolean drawFrame = false;
+  if(currentFrameTime - lastFrameTime > 100){
+    drawFrame = true;
+    lastFrameTime = currentFrameTime;
+  }
   frame++;
-  if(frame%100 == 0){
-   drawFrame = true;
-  } 
   if(drawFrame){
     lcd.clear();
   }
@@ -114,8 +118,10 @@ void loop() {
   
   // Actions for MODE button
   if(buttonStateA==LOW){
-    lcd.setCursor(0,0); 
-    lcd.print("A");
+    if(drawFrame){
+      lcd.setCursor(0,0); 
+      lcd.print("A");
+    }
     if(modeButtonHasReset){
       mode++;
     }
@@ -129,8 +135,10 @@ void loop() {
   }
   // Actions for LEFT button
   if(buttonStateB==LOW){
-    lcd.setCursor(1,0); 
-    lcd.print("B"); 
+    if(drawFrame){
+      lcd.setCursor(1,0); 
+      lcd.print("B");
+    } 
     railDirection = LEFT;
     if(mode==MODE_MANUAL){
       moveRail();
@@ -138,8 +146,10 @@ void loop() {
   }
   // Actions for RIGHT button
   if(buttonStateC==LOW){
-    lcd.setCursor(2,0); 
-    lcd.print("C");
+    if(drawFrame){
+      lcd.setCursor(2,0); 
+      lcd.print("C");
+    }
     railDirection = RIGHT;
     if(mode==MODE_MANUAL){
       moveRail();
@@ -147,8 +157,10 @@ void loop() {
   }
   // Actions for SELECT button
   if(buttonStateD==LOW){
-    lcd.setCursor(3,0); 
-    lcd.print("D"); 
+    if(drawFrame){
+      lcd.setCursor(3,0); 
+      lcd.print("D"); 
+    }
   }
   // Mode actions
   if(drawFrame){
@@ -181,7 +193,7 @@ void loop() {
     lcd.print("POS: ");
     lcd.print(railPos);
   }
-  delay(1);
+  //delay(1);
 }
 
 void moveRail(){
