@@ -8,9 +8,10 @@ LiquidCrystal_I2C	lcd(0x27,2,1,0,4,5,6,7); // 0x27 is the I2C bus address for an
 // Constants
 const int MODE_AUTO = 0;
 const int MODE_MANUAL = 1;
-const int MODE_SETPPS = 2;
-const int LEFT = 0;
-const int RIGHT = 1;
+const int MODE_SETAUTOSPEED = 2;
+const int MODE_SETMANSPEED = 3;
+const int LEFT = 1;
+const int RIGHT = 0;
 
 // Button Pins
 const int buttonA = 5;
@@ -28,7 +29,8 @@ const int mode2Pin = 10;
 
 // Initial States
 volatile long pulseCount = 0;
-int PPS = 2000;
+int autoSpeed = 500;
+int manSpeed = 3000;
 
 int mode0State = LOW;
 int mode1State = LOW;
@@ -38,6 +40,8 @@ boolean modeButtonHasReset = true;
 boolean selectButtonHasReset = true;
 boolean leftButtonHasReset = true;
 boolean rightButtonHasReset = true;
+boolean rightPressed = false;
+boolean leftPressed = false;
 boolean autoPaused = true;
 boolean emergencyStop = true;
 
@@ -69,9 +73,9 @@ void setup() {
   //setup Timer1
   cli();
   TCCR1A = 0b00000000;
-  TCCR1B = 0b00001001;
+  TCCR1B = 0b00001011;
   TIMSK1 |= 0b00000010;       //set for output compare interrupt
-  OCR1A = 16000000/PPS - 1; 
+  OCR1A = 16000000/64/autoSpeed - 1; 
   sei();                      //enables interrups. Use cli() to turn them off
   
   lcd.begin(16,2); // Initializes the interface to the LCD screen, and specifies the dimensions (width and height) of the display
@@ -91,10 +95,6 @@ void setup() {
   digitalWrite(mode1Pin, mode1State);
   digitalWrite(mode2Pin, mode2State);
   digitalWrite(dirPin, railDirection);
-  
-
-  
-  
 }
 
 void loop() {
@@ -165,7 +165,7 @@ void loop() {
       mode++;
     }
     modeButtonHasReset = false;
-    if(mode > MODE_SETPPS){
+    if(mode > MODE_SETMANSPEED){
       mode = MODE_AUTO;
     }
   }
@@ -181,18 +181,29 @@ void loop() {
         railDirection = LEFT;
         digitalWrite(dirPin, railDirection);
       }
-      if(mode==MODE_SETPPS){
-          PPS-=10;
-          OCR1A = 16000000/PPS - 1;
+      if(mode==MODE_SETAUTOSPEED){
+          autoSpeed-=10;
+          OCR1A = 16000000/64/autoSpeed - 1;
+      }
+      if(mode==MODE_SETMANSPEED){
+          manSpeed-=10;
+          //OCR1A = 16000000/manSpeed - 1;
       }
     }
     if(mode==MODE_MANUAL){
-       moveRail();
+       OCR1A = 16000000/64/manSpeed - 1;
+       emergencyStop = false;
+       leftPressed = true;
     }
     leftButtonHasReset = false;
   }
   if(buttonStateB==HIGH){
     leftButtonHasReset = true;
+  }
+  if(buttonStateB==HIGH && leftPressed ){
+     OCR1A = 16000000/64/autoSpeed - 1;
+     emergencyStop = true;
+     leftPressed = false;
   }
   
   //
@@ -203,31 +214,38 @@ void loop() {
         railDirection = RIGHT;
         digitalWrite(dirPin, railDirection);
       }
-      if(mode==MODE_SETPPS){
-          PPS+=10;
-          OCR1A = 16000000/PPS - 1;
+      if(mode==MODE_SETAUTOSPEED){
+          autoSpeed+=10;
+          OCR1A = 16000000/64/autoSpeed - 1;
+      }
+      if(mode==MODE_SETMANSPEED){
+          manSpeed+=10;
+          //OCR1A = 16000000/manSpeed - 1;
       }
     }
     if(mode==MODE_MANUAL){
-       moveRail();
+      OCR1A = 16000000/64/manSpeed - 1;
+      emergencyStop = false;
+      rightPressed = true;
     }
     rightButtonHasReset = false;
   }
   if(buttonStateC==HIGH){
     rightButtonHasReset = true;
   }
+  if(buttonStateC==HIGH && rightPressed ){
+     OCR1A = 16000000/64/autoSpeed - 1;
+     emergencyStop = true;
+     rightPressed = false;
+  }
   
   //
   // Actions for SELECT button
   if(buttonStateD==LOW){
     if(selectButtonHasReset){
-      // invert pause flag
-     if(mode==MODE_AUTO){
-       autoPaused = !autoPaused;
-     }
-     if(mode==MODE_MANUAL || mode==MODE_SETPPS){
-       emergencyStop = !emergencyStop;
-     }
+      // invert stop flag
+      emergencyStop = !emergencyStop;
+     
     }
     selectButtonHasReset = false;
     
@@ -259,21 +277,27 @@ void loop() {
       lcd.print(railPos);
     }
   }
-  if(mode==MODE_SETPPS){
+  if(mode==MODE_SETAUTOSPEED){
     if(drawFrame){
-      lcd.print("SET PPS: ");
-      lcd.print(PPS);
+      lcd.print("AUTO SPEED: ");
+      lcd.print(autoSpeed);
+    }
+  }
+  if(mode==MODE_SETMANSPEED){
+    if(drawFrame){
+      lcd.print("MAN SPEED: ");
+      lcd.print(manSpeed);
     }
   }
   if(drawFrame){
     lcd.setCursor(0,0);
     if(railDirection == LEFT){
-      lcd.print("L");
+      lcd.print("<");
     }
     if(railDirection == RIGHT){
-      lcd.print("R");
+      lcd.print(">");
     }
-    lcd.print(", P: ");
+    lcd.print(" X: ");
     lcd.print(pulseCount);
   }
   //delay(1);
