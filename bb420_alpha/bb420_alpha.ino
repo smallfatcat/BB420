@@ -73,9 +73,9 @@ void setup() {
   //setup Timer1
   cli();
   TCCR1A = 0b00000000;
-  TCCR1B = 0b00001011;
+  TCCR1B = 0b00001001;
   TIMSK1 |= 0b00000010;       //set for output compare interrupt
-  OCR1A = 16000000/64/autoSpeed - 1; 
+  OCR1A = 16000000/autoSpeed - 1; 
   sei();                      //enables interrups. Use cli() to turn them off
   
   lcd.begin(16,2); // Initializes the interface to the LCD screen, and specifies the dimensions (width and height) of the display
@@ -183,7 +183,7 @@ void loop() {
       }
       if(mode==MODE_SETAUTOSPEED){
           autoSpeed-=10;
-          OCR1A = 16000000/64/autoSpeed - 1;
+          OCR1A = 16000000/autoSpeed - 1;
       }
       if(mode==MODE_SETMANSPEED){
           manSpeed-=10;
@@ -191,7 +191,7 @@ void loop() {
       }
     }
     if(mode==MODE_MANUAL){
-       OCR1A = 16000000/64/manSpeed - 1;
+       OCR1A = 16000000/manSpeed - 1;
        emergencyStop = false;
        leftPressed = true;
     }
@@ -201,7 +201,7 @@ void loop() {
     leftButtonHasReset = true;
   }
   if(buttonStateB==HIGH && leftPressed ){
-     OCR1A = 16000000/64/autoSpeed - 1;
+     OCR1A = 16000000/autoSpeed - 1;
      emergencyStop = true;
      leftPressed = false;
   }
@@ -216,7 +216,7 @@ void loop() {
       }
       if(mode==MODE_SETAUTOSPEED){
           autoSpeed+=10;
-          OCR1A = 16000000/64/autoSpeed - 1;
+          OCR1A = 16000000/autoSpeed - 1;
       }
       if(mode==MODE_SETMANSPEED){
           manSpeed+=10;
@@ -224,7 +224,7 @@ void loop() {
       }
     }
     if(mode==MODE_MANUAL){
-      OCR1A = 16000000/64/manSpeed - 1;
+      OCR1A = 16000000/manSpeed - 1;
       emergencyStop = false;
       rightPressed = true;
     }
@@ -234,7 +234,7 @@ void loop() {
     rightButtonHasReset = true;
   }
   if(buttonStateC==HIGH && rightPressed ){
-     OCR1A = 16000000/64/autoSpeed - 1;
+     OCR1A = 16000000/autoSpeed - 1;
      emergencyStop = true;
      rightPressed = false;
   }
