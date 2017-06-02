@@ -37,7 +37,7 @@ const int probePin = 11;
 
 // Initial States
 volatile long pulseCount = 0;
-long drillDepth = -100;
+long drillDepth = -5222;
 int autoSpeed = 10;
 int manSpeed = 10;
 
@@ -200,7 +200,7 @@ void loop() {
           //OCR1A = 16000000/manSpeed - 1;
       }
     }
-    if(mode==MODE_MANUAL || mode==MODE_ZERO){
+    if(mode==MODE_MANUAL || mode==MODE_ZERO || mode==MODE_DRILL){
        OCR1A = 16000000/manSpeed - 1;
        emergencyStop = false;
        UPPressed = true;
@@ -220,7 +220,7 @@ void loop() {
   // Actions for DOWN button -----------------------------------------------------------------------------
   if(buttonStateC==LOW){
     if(DOWNButtonHasReset){
-      if(mode==MODE_AUTO || mode==MODE_MANUAL || mode==MODE_ZERO|| mode==MODE_DRILL){
+      if(mode==MODE_AUTO || mode==MODE_MANUAL || mode==MODE_ZERO || mode==MODE_DRILL){
         railDirection = DOWN;
         digitalWrite(dirPin, railDirection);
       }
