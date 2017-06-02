@@ -1,4 +1,4 @@
-// BB420 alpha version
+// drillpress
 
 
 #include <Wire.h>
@@ -6,12 +6,17 @@
 #include <LiquidCrystal_I2C.h> // includes the LiquidCrystal Library
 LiquidCrystal_I2C	lcd(0x27,2,1,0,4,5,6,7); // 0x27 is the I2C bus address for an unmodified backpack
 // Constants
-const int MODE_AUTO = 0;
-const int MODE_MANUAL = 1;
-const int MODE_SETAUTOSPEED = 2;
-const int MODE_SETMANSPEED = 3;
-const int LEFT = 1;
-const int RIGHT = 0;
+
+const int MODE_MANUAL = 0;
+const int MODE_SETMANSPEED = 1;
+const int MODE_ZERO = 2;
+const int MODE_DRILL = 3;
+
+const int MODE_AUTO = 5;
+const int MODE_SETAUTOSPEED = 5;
+
+const int UP = 1;
+const int DOWN = 0;
 
 // Button Pins
 const int buttonA = 5;
@@ -26,9 +31,13 @@ const int mode0Pin = 8;
 const int mode1Pin = 9;
 const int mode2Pin = 10;
 
+// Touch probe pin
+const int probePin = 11;
+
 
 // Initial States
 volatile long pulseCount = 0;
+long drillDepth = -100;
 int autoSpeed = 10;
 int manSpeed = 10;
 
@@ -38,10 +47,10 @@ int mode2State = HIGH;
 
 boolean modeButtonHasReset = true;
 boolean selectButtonHasReset = true;
-boolean leftButtonHasReset = true;
-boolean rightButtonHasReset = true;
-boolean rightPressed = false;
-boolean leftPressed = false;
+boolean UPButtonHasReset = true;
+boolean DOWNButtonHasReset = true;
+boolean DOWNPressed = false;
+boolean UPPressed = false;
 boolean autoPaused = true;
 boolean emergencyStop = true;
 
@@ -63,8 +72,8 @@ unsigned long debounceDelay = 50;
 
 unsigned long lastFrameTime = 0;
 
-int mode = MODE_AUTO;
-int railDirection = LEFT;
+int mode = MODE_MANUAL;
+int railDirection = UP;
 int frame = 0;
 long railPos = 0;
 
@@ -82,6 +91,7 @@ void setup() {
   lcd.setBacklightPin(3,POSITIVE);
   lcd.setBacklight(HIGH);
   lcd.noCursor();
+  pinMode(probePin, INPUT_PULLUP);
   pinMode(buttonA, INPUT_PULLUP);
   pinMode(buttonB, INPUT_PULLUP);
   pinMode(buttonC, INPUT_PULLUP);
@@ -159,14 +169,14 @@ void loop() {
   lastButtonStateD = readingD;
   
   //
-  // Actions for MODE button
+  // Actions for MODE button -----------------------------------------------------------------------------
   if(buttonStateA==LOW){
     if(modeButtonHasReset){
       mode++;
     }
     modeButtonHasReset = false;
-    if(mode > MODE_SETMANSPEED){
-      mode = MODE_AUTO;
+    if(mode > MODE_DRILL){
+      mode = MODE_MANUAL;
     }
   }
   if(buttonStateA==HIGH){
@@ -174,11 +184,11 @@ void loop() {
   }
   
   //
-  // Actions for LEFT button
+  // Actions for UP button -----------------------------------------------------------------------------
   if(buttonStateB==LOW){
-    if(leftButtonHasReset){
-      if(mode==MODE_AUTO || mode==MODE_MANUAL){
-        railDirection = LEFT;
+    if(UPButtonHasReset){
+      if(mode==MODE_AUTO || mode==MODE_MANUAL || mode==MODE_ZERO || mode==MODE_DRILL){
+        railDirection = UP;
         digitalWrite(dirPin, railDirection);
       }
       if(mode==MODE_SETAUTOSPEED){
@@ -190,28 +200,28 @@ void loop() {
           //OCR1A = 16000000/manSpeed - 1;
       }
     }
-    if(mode==MODE_MANUAL){
+    if(mode==MODE_MANUAL || mode==MODE_ZERO){
        OCR1A = 16000000/manSpeed - 1;
        emergencyStop = false;
-       leftPressed = true;
+       UPPressed = true;
     }
-    leftButtonHasReset = false;
+    UPButtonHasReset = false;
   }
   if(buttonStateB==HIGH){
-    leftButtonHasReset = true;
+    UPButtonHasReset = true;
   }
-  if(buttonStateB==HIGH && leftPressed ){
+  if(buttonStateB==HIGH && UPPressed ){
      OCR1A = 16000000/autoSpeed - 1;
      emergencyStop = true;
-     leftPressed = false;
+     UPPressed = false;
   }
   
   //
-  // Actions for RIGHT button
+  // Actions for DOWN button -----------------------------------------------------------------------------
   if(buttonStateC==LOW){
-    if(rightButtonHasReset){
-      if(mode==MODE_AUTO || mode==MODE_MANUAL){
-        railDirection = RIGHT;
+    if(DOWNButtonHasReset){
+      if(mode==MODE_AUTO || mode==MODE_MANUAL || mode==MODE_ZERO|| mode==MODE_DRILL){
+        railDirection = DOWN;
         digitalWrite(dirPin, railDirection);
       }
       if(mode==MODE_SETAUTOSPEED){
@@ -223,31 +233,37 @@ void loop() {
           //OCR1A = 16000000/manSpeed - 1;
       }
     }
-    if(mode==MODE_MANUAL){
+    if(mode==MODE_MANUAL || mode==MODE_ZERO|| mode==MODE_DRILL){
       OCR1A = 16000000/manSpeed - 1;
       emergencyStop = false;
-      rightPressed = true;
+      DOWNPressed = true;
     }
-    rightButtonHasReset = false;
+    DOWNButtonHasReset = false;
   }
   if(buttonStateC==HIGH){
-    rightButtonHasReset = true;
+    DOWNButtonHasReset = true;
   }
-  if(buttonStateC==HIGH && rightPressed ){
+  if(buttonStateC==HIGH && DOWNPressed ){
      OCR1A = 16000000/autoSpeed - 1;
      emergencyStop = true;
-     rightPressed = false;
+     DOWNPressed = false;
   }
   
   //
-  // Actions for SELECT button
+  // Actions for SELECT button -----------------------------------------------------------------------------
   if(buttonStateD==LOW){
     if(selectButtonHasReset){
       // invert stop flag
       //emergencyStop = !emergencyStop;
      // step once
       digitalWrite(stepPin, HIGH);       // Driver only looks for rising edge
-      digitalWrite(stepPin, LOW);        //  DigitalWrite executes in 16 us  
+      digitalWrite(stepPin, LOW);        //  DigitalWrite executes in 16 us
+      if(railDirection == UP){
+        pulseCount++;
+      }
+      else{
+        pulseCount--;
+      }
     }
     selectButtonHasReset = false;
     
@@ -275,8 +291,8 @@ void loop() {
   }
   if(mode==MODE_MANUAL){
     if(drawFrame){
-      lcd.print("MAN POS: ");
-      lcd.print(railPos);
+      lcd.print("MANUAL: ");
+      //lcd.print(railPos);
     }
   }
   if(mode==MODE_SETAUTOSPEED){
@@ -291,13 +307,25 @@ void loop() {
       lcd.print(manSpeed);
     }
   }
+  if(mode==MODE_DRILL){
+    if(drawFrame){
+      lcd.print("DRILL: ");
+      lcd.print(drillDepth);
+    }
+  }
+  if(mode==MODE_ZERO){
+    if(drawFrame){
+      lcd.print("ZERO: ");
+      //lcd.print(manSpeed);
+    }
+  }
   if(drawFrame){
     lcd.setCursor(0,0);
-    if(railDirection == LEFT){
-      lcd.print("<");
+    if(railDirection == UP){
+      lcd.print("U");
     }
-    if(railDirection == RIGHT){
-      lcd.print(">");
+    if(railDirection == DOWN){
+      lcd.print("D");
     }
     lcd.print(" X: ");
     lcd.print(pulseCount);
@@ -306,19 +334,29 @@ void loop() {
 }
 
 void moveRail(){
-  if(railDirection == LEFT){
+  if(railDirection == UP){
     railPos--;
   }
-  if(railDirection == RIGHT){
+  if(railDirection == DOWN){
     railPos++;
   }
 }
 
 ISR(TIMER1_COMPA_vect) {
+    // Read probe to set zero
+    if(digitalRead(probePin) == LOW && railDirection == DOWN && mode==MODE_ZERO ){
+      emergencyStop = true;
+      pulseCount = 0;
+    }
+    if(mode==MODE_DRILL){
+      if(pulseCount <= drillDepth && railDirection == DOWN){
+        emergencyStop = true;
+      }
+    }
     if(!emergencyStop){
       digitalWrite(stepPin, HIGH);       // Driver only looks for rising edge
       digitalWrite(stepPin, LOW);        //  DigitalWrite executes in 16 us  
-      if(railDirection == LEFT){
+      if(railDirection == UP){
         pulseCount++;
       }
       else{
