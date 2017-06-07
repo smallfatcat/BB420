@@ -40,7 +40,9 @@ const int probePin = 11;
 volatile long pulseCount = 0;
 long drillDepth = -80;
 int autoSpeed = 10;
-int manSpeed = 10;
+int manSpeed = 300;
+volatile int loopCount = 0;
+int targetLoopCount = 0;
 
 int mode0State = LOW;
 int mode1State = LOW;
@@ -83,10 +85,10 @@ void setup() {
   //setup Timer1
   cli();
   TCCR1A = 0b00000000;
-  TCCR1B = 0b00001001;
-  TIMSK1 |= 0b00000010;       //set for output compare interrupt
-  OCR1A = 16000000/autoSpeed - 1; 
-  sei();                      //enables interrups. Use cli() to turn them off
+  TCCR1B = 0b00001001;        // set prescalar to 1
+  TIMSK1 |= 0b00000010;       // set for output compare interrupt
+  setMotorSpeed(autoSpeed); 
+  sei();                      // enables interrupts. Use cli() to turn them off
   
   lcd.begin(16,2); // Initializes the interface to the LCD screen, and specifies the dimensions (width and height) of the display
   lcd.setBacklightPin(3,POSITIVE);
@@ -194,10 +196,10 @@ void loop() {
       }
       if(mode==MODE_SETAUTOSPEED){
           autoSpeed -= 10;
-          OCR1A = 16000000/autoSpeed - 1;
+          setMotorSpeed(autoSpeed);
       }
       if(mode==MODE_SETMANSPEED){
-          manSpeed -= 1;
+          manSpeed -= 10;
           //OCR1A = 16000000/manSpeed - 1;
       }
       if(mode==MODE_SETDRILL){
@@ -205,7 +207,7 @@ void loop() {
       }
     }
     if(mode==MODE_MANUAL || mode==MODE_ZERO || mode==MODE_DRILL){
-       OCR1A = 16000000/manSpeed - 1;
+       setMotorSpeed(manSpeed);
        emergencyStop = false;
        UPPressed = true;
     }
@@ -215,7 +217,7 @@ void loop() {
     UPButtonHasReset = true;
   }
   if(buttonStateB==HIGH && UPPressed ){
-     OCR1A = 16000000/autoSpeed - 1;
+     setMotorSpeed(autoSpeed);
      emergencyStop = true;
      UPPressed = false;
   }
@@ -230,10 +232,10 @@ void loop() {
       }
       if(mode==MODE_SETAUTOSPEED){
           autoSpeed += 10;
-          OCR1A = 16000000/autoSpeed - 1;
+          setMotorSpeed(autoSpeed);
       }
       if(mode==MODE_SETMANSPEED){
-          manSpeed += 1;
+          manSpeed += 10;
           //OCR1A = 16000000/manSpeed - 1;
       }
       if(mode==MODE_SETDRILL){
@@ -241,7 +243,7 @@ void loop() {
       }
     }
     if(mode==MODE_MANUAL || mode==MODE_ZERO|| mode==MODE_DRILL){
-      OCR1A = 16000000/manSpeed - 1;
+      setMotorSpeed(manSpeed);
       emergencyStop = false;
       DOWNPressed = true;
     }
@@ -251,7 +253,7 @@ void loop() {
     DOWNButtonHasReset = true;
   }
   if(buttonStateC==HIGH && DOWNPressed ){
-     OCR1A = 16000000/autoSpeed - 1;
+     setMotorSpeed(autoSpeed);
      emergencyStop = true;
      DOWNPressed = false;
   }
@@ -355,30 +357,50 @@ void moveRail(){
   }
 }
 
+void setMotorSpeed(int newMotorSpeed){
+  int timerCount = 16000000/newMotorSpeed - 1;
+  if(timerCount < 65536){ 
+    loopCount = 0;
+    targetLoopCount = loopCount;
+    OCR1A = timerCount;
+  }
+  else{
+    loopCount = floor(timerCount / 65535);
+    targetLoopCount = loopCount;
+    OCR1A = round(timerCount / (loopCount+1));
+  }
+}
+
 ISR(TIMER1_COMPA_vect) {
-    // Read probe to set zero
-    if(digitalRead(probePin) == LOW && railDirection == DOWN && mode==MODE_ZERO ){
-      emergencyStop = true;
-      pulseCount = 0;
-    }
-    if(mode==MODE_DRILL){
-      if(pulseCount <= drillDepth && railDirection == DOWN){
+    if(loopCount == 0){
+      loopCount = targetLoopCount;
+      // Read probe to set zero
+      if(digitalRead(probePin) == LOW && railDirection == DOWN && mode==MODE_ZERO ){
         emergencyStop = true;
+        pulseCount = 0;
+      }
+      if(mode==MODE_DRILL){
+        if(pulseCount <= drillDepth && railDirection == DOWN){
+          emergencyStop = true;
+        }
+      }
+      if(!emergencyStop){
+        digitalWrite(stepPin, HIGH);       // Driver only looks for rising edge
+        digitalWrite(stepPin, LOW);        //  DigitalWrite executes in 16 us  
+        if(railDirection == UP){
+          pulseCount++;
+        }
+        else{
+          pulseCount--;
+        }
+        
+        //Generate Rising Edge
+        //PORTL =  PORTL |= 0b00001000;   //Direct Port manipulation executes in 450 ns  => 16x faster!
+        //PORTL =  PORTL &= 0b11110111;
+        //Location = Location + 250 * DirFlag ;  //Updates Location (based on 4000 Pulses/mm)
       }
     }
-    if(!emergencyStop){
-      digitalWrite(stepPin, HIGH);       // Driver only looks for rising edge
-      digitalWrite(stepPin, LOW);        //  DigitalWrite executes in 16 us  
-      if(railDirection == UP){
-        pulseCount++;
-      }
-      else{
-        pulseCount--;
-      }
-      
-      //Generate Rising Edge
-      //PORTL =  PORTL |= 0b00001000;   //Direct Port manipulation executes in 450 ns  => 16x faster!
-      //PORTL =  PORTL &= 0b11110111;
-      //Location = Location + 250 * DirFlag ;  //Updates Location (based on 4000 Pulses/mm)
+    else{
+      loopCount-- ;
     }
 }
