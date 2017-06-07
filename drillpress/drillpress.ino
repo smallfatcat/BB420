@@ -11,6 +11,7 @@ const int MODE_MANUAL = 0;
 const int MODE_SETMANSPEED = 1;
 const int MODE_ZERO = 2;
 const int MODE_DRILL = 3;
+const int MODE_SETDRILL = 4;
 
 const int MODE_AUTO = 5;
 const int MODE_SETAUTOSPEED = 5;
@@ -19,9 +20,9 @@ const int UP = 1;
 const int DOWN = 0;
 
 // Button Pins
-const int buttonA = 5;
-const int buttonB = 4;
-const int buttonC = 3;
+const int buttonA = 3;
+const int buttonB = 5;
+const int buttonC = 4;
 const int buttonD = 2;
 
 // Stepper Pins
@@ -37,7 +38,7 @@ const int probePin = 11;
 
 // Initial States
 volatile long pulseCount = 0;
-long drillDepth = -5222;
+long drillDepth = -80;
 int autoSpeed = 10;
 int manSpeed = 10;
 
@@ -175,7 +176,7 @@ void loop() {
       mode++;
     }
     modeButtonHasReset = false;
-    if(mode > MODE_DRILL){
+    if(mode > MODE_SETDRILL){
       mode = MODE_MANUAL;
     }
   }
@@ -192,12 +193,15 @@ void loop() {
         digitalWrite(dirPin, railDirection);
       }
       if(mode==MODE_SETAUTOSPEED){
-          autoSpeed-=10;
+          autoSpeed -= 10;
           OCR1A = 16000000/autoSpeed - 1;
       }
       if(mode==MODE_SETMANSPEED){
-          manSpeed-=1;
+          manSpeed -= 1;
           //OCR1A = 16000000/manSpeed - 1;
+      }
+      if(mode==MODE_SETDRILL){
+          drillDepth -= 1;
       }
     }
     if(mode==MODE_MANUAL || mode==MODE_ZERO || mode==MODE_DRILL){
@@ -225,12 +229,15 @@ void loop() {
         digitalWrite(dirPin, railDirection);
       }
       if(mode==MODE_SETAUTOSPEED){
-          autoSpeed+=10;
+          autoSpeed += 10;
           OCR1A = 16000000/autoSpeed - 1;
       }
       if(mode==MODE_SETMANSPEED){
-          manSpeed+=1;
+          manSpeed += 1;
           //OCR1A = 16000000/manSpeed - 1;
+      }
+      if(mode==MODE_SETDRILL){
+          drillDepth += 1;
       }
     }
     if(mode==MODE_MANUAL || mode==MODE_ZERO|| mode==MODE_DRILL){
@@ -317,6 +324,12 @@ void loop() {
     if(drawFrame){
       lcd.print("ZERO: ");
       //lcd.print(manSpeed);
+    }
+  }
+ if(mode==MODE_SETDRILL){
+    if(drawFrame){
+      lcd.print("SET DRILL: ");
+      lcd.print(drillDepth);
     }
   }
   if(drawFrame){
