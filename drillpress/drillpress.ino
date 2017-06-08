@@ -19,6 +19,9 @@ const int MODE_SETAUTOSPEED = 5;
 const int UP = 1;
 const int DOWN = 0;
 
+const unsigned long repeatSpeedSlow = 500;
+const unsigned long repeatSpeedFast = 100;
+
 // Button Pins
 const int buttonA = 3;
 const int buttonB = 5;
@@ -73,6 +76,11 @@ unsigned long lastDebounceTimeA = 0;
 unsigned long lastDebounceTimeB = 0;
 unsigned long lastDebounceTimeC = 0;
 unsigned long lastDebounceTimeD = 0;
+unsigned long UPHeldSince = 0;
+unsigned long DOWNHeldSince = 0;
+unsigned long UPrepeatDelay = repeatSpeedSlow;
+unsigned long DOWNrepeatDelay = repeatSpeedSlow;
+
 unsigned long debounceDelay = 50;
 
 unsigned long lastFrameTime = 0;
@@ -195,8 +203,63 @@ void loop() {
   // Actions for UP button -----------------------------------------------------------------------------
   if(buttonStateB==LOW){
     if(UPButtonHasReset){
+      // deal with repeat
+      UPHeldSince = millis();
+      UPrepeatDelay = repeatSpeedSlow;
       if(mode==MODE_AUTO || mode==MODE_MANUAL || mode==MODE_ZERO || mode==MODE_DRILL){
         railDirection = UP;
+        digitalWrite(dirPin, railDirection);
+      }
+      if(mode==MODE_SETAUTOSPEED){
+          autoSpeed += 10;
+          setMotorSpeed(autoSpeed);
+      }
+      if(mode==MODE_SETMANSPEED){
+          manSpeed += 10;
+          setMotorSpeed(manSpeed);
+      }
+      if(mode==MODE_SETDRILL){
+          drillDepth += 1;
+      }
+    }
+    if((UPHeldSince+UPrepeatDelay)<millis()){
+      UPHeldSince = millis();
+      UPrepeatDelay = repeatSpeedFast;
+      if(mode==MODE_SETMANSPEED){
+          manSpeed += 10;
+          setMotorSpeed(manSpeed);
+      }
+      if(mode==MODE_SETDRILL){
+          drillDepth += 1;
+      }
+    }
+    if(mode==MODE_MANUAL || mode==MODE_ZERO || mode==MODE_DRILL){
+       //setMotorSpeed(manSpeed);
+       emergencyStop = false;
+       UPPressed = true;
+    }
+    UPButtonHasReset = false;
+  }
+  
+  if(buttonStateB==HIGH){
+    UPButtonHasReset = true;
+  }
+  
+  if(buttonStateB==HIGH && UPPressed ){
+     //setMotorSpeed(autoSpeed);
+     emergencyStop = true;
+     UPPressed = false;
+  }
+  
+  //
+  // Actions for DOWN button -----------------------------------------------------------------------------
+  if(buttonStateC==LOW){
+    if(DOWNButtonHasReset){
+      // deal with repeat
+      DOWNHeldSince = millis();
+      DOWNrepeatDelay = repeatSpeedSlow;
+      if(mode==MODE_AUTO || mode==MODE_MANUAL || mode==MODE_ZERO || mode==MODE_DRILL){
+        railDirection = DOWN;
         digitalWrite(dirPin, railDirection);
       }
       if(mode==MODE_SETAUTOSPEED){
@@ -211,40 +274,15 @@ void loop() {
           drillDepth -= 1;
       }
     }
-    if(mode==MODE_MANUAL || mode==MODE_ZERO || mode==MODE_DRILL){
-       //setMotorSpeed(manSpeed);
-       emergencyStop = false;
-       UPPressed = true;
-    }
-    UPButtonHasReset = false;
-  }
-  if(buttonStateB==HIGH){
-    UPButtonHasReset = true;
-  }
-  if(buttonStateB==HIGH && UPPressed ){
-     //setMotorSpeed(autoSpeed);
-     emergencyStop = true;
-     UPPressed = false;
-  }
-  
-  //
-  // Actions for DOWN button -----------------------------------------------------------------------------
-  if(buttonStateC==LOW){
-    if(DOWNButtonHasReset){
-      if(mode==MODE_AUTO || mode==MODE_MANUAL || mode==MODE_ZERO || mode==MODE_DRILL){
-        railDirection = DOWN;
-        digitalWrite(dirPin, railDirection);
-      }
-      if(mode==MODE_SETAUTOSPEED){
-          autoSpeed += 10;
-          setMotorSpeed(autoSpeed);
-      }
+    if((DOWNHeldSince+DOWNrepeatDelay)<millis()){
+      DOWNHeldSince = millis();
+      DOWNrepeatDelay = repeatSpeedFast;
       if(mode==MODE_SETMANSPEED){
-          manSpeed += 10;
+          manSpeed -= 10;
           setMotorSpeed(manSpeed);
       }
       if(mode==MODE_SETDRILL){
-          drillDepth += 1;
+          drillDepth -= 1;
       }
     }
     if(mode==MODE_MANUAL || mode==MODE_ZERO|| mode==MODE_DRILL){
