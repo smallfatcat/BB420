@@ -269,7 +269,7 @@ void loop() {
     if(selectButtonHasReset){
       // invert stop flag
       //emergencyStop = !emergencyStop;
-     // step once
+     /*// step once
       digitalWrite(stepPin, HIGH);       // Driver only looks for rising edge
       digitalWrite(stepPin, LOW);        //  DigitalWrite executes in 16 us
       if(railDirection == UP){
@@ -277,6 +277,9 @@ void loop() {
       }
       else{
         pulseCount--;
+      }*/
+      if(mode==MODE_ZERO){
+        pulseCount = 0;
       }
     }
     selectButtonHasReset = false;
@@ -285,7 +288,7 @@ void loop() {
   if(buttonStateD==HIGH){
     selectButtonHasReset = true;
   }
-  // Mode actions
+  // Mode actions ---------------------------------------------------------------------------------------------
   if(drawFrame){
     lcd.setCursor(0,1);
   }
@@ -305,7 +308,7 @@ void loop() {
   }
   if(mode==MODE_MANUAL){
     if(drawFrame){
-      lcd.print("MANUAL: ");
+      lcd.print("JOG: ");
       //lcd.print(railPos);
     }
   }
@@ -317,14 +320,18 @@ void loop() {
   }
   if(mode==MODE_SETMANSPEED){
     if(drawFrame){
-      lcd.print("MAN SPEED: ");
+      lcd.print("SET S: ");
       lcd.print(manSpeed);
     }
   }
   if(mode==MODE_DRILL){
     if(drawFrame){
       lcd.print("DRILL: ");
-      lcd.print(drillDepth);
+      //lcd.print(drillDepth);
+      //lcd.print(", ");
+      double Dmm = drillDepth/stepsPermm;
+      lcd.print(Dmm);
+      lcd.print("mm");
     }
   }
   if(mode==MODE_ZERO){
@@ -335,8 +342,12 @@ void loop() {
   }
  if(mode==MODE_SETDRILL){
     if(drawFrame){
-      lcd.print("SET DRILL: ");
-      lcd.print(drillDepth);
+      lcd.print("SET D: ");
+      //lcd.print(drillDepth);
+      //lcd.print(", ");
+      double Dmm = drillDepth/stepsPermm;
+      lcd.print(Dmm);
+      lcd.print("mm");
     }
   }
   if(drawFrame){
