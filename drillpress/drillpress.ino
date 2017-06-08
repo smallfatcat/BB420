@@ -43,7 +43,9 @@ int autoSpeed = 300;
 int manSpeed = 300;
 volatile int loopCount = 0;
 int targetLoopCount = 0;
+double stepsPermm = 80;
 
+// 1/16 microsteps
 int mode0State = LOW;
 int mode1State = LOW;
 int mode2State = HIGH;
@@ -339,14 +341,18 @@ void loop() {
   }
   if(drawFrame){
     lcd.setCursor(0,0);
-    if(railDirection == UP){
+    /*if(railDirection == UP){
       lcd.print("U");
     }
     if(railDirection == DOWN){
       lcd.print("D");
-    }
-    lcd.print(" X: ");
+    }*/
+    lcd.print("X: ");
     lcd.print(pulseCount);
+    lcd.print(", ");
+    double Xmm = pulseCount/stepsPermm;
+    lcd.print(Xmm);
+    lcd.print("mm");
   }
   //delay(1);
 }
@@ -366,25 +372,25 @@ void setMotorSpeed(int newMotorSpeed){
     loopCount = 0;
     targetLoopCount = loopCount;
     OCR1A = timerCount;
-    Serial.println("------");
+    /*Serial.println("------");
     Serial.print("OCR1A: ");
     Serial.println(OCR1A);
     Serial.print("loopCount: ");
     Serial.println(loopCount);
     Serial.print("newMotorSpeed: ");
-    Serial.println(newMotorSpeed);
+    Serial.println(newMotorSpeed);*/
   }
   else{
     loopCount = floor(timerCount / 65535);
     targetLoopCount = loopCount;
     OCR1A = round(timerCount / (loopCount+1));
-    Serial.println("------");
+    /*Serial.println("------");
     Serial.print("OCR1A: ");
     Serial.println(OCR1A);
     Serial.print("loopCount: ");
     Serial.println(loopCount);
     Serial.print("newMotorSpeed: ");
-    Serial.println(newMotorSpeed);
+    Serial.println(newMotorSpeed);*/
   }
 }
 
