@@ -23,20 +23,20 @@ const unsigned long repeatSpeedSlow = 500;
 const unsigned long repeatSpeedFast = 100;
 
 // Button Pins
-const int buttonA = 3;
-const int buttonB = 5;
-const int buttonC = 4;
-const int buttonD = 2;
+const int buttonA = 9;
+const int buttonB = 12;
+const int buttonC = 11;
+const int buttonD = 10;
 
 // Stepper Pins
-const int stepPin = 6;
-const int dirPin = 7;
-const int mode0Pin = 8;
-const int mode1Pin = 9;
-const int mode2Pin = 10;
+const int stepPin = 5;
+const int dirPin = 4;
+const int mode0Pin = 7;
+const int mode1Pin = 8;
+const int mode2Pin = 9;
 
 // Touch probe pin
-const int probePin = 11;
+const int probePin = 13;
 
 
 // Initial States
