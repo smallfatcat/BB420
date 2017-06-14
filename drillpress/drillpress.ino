@@ -31,9 +31,9 @@ const int buttonD = 10;
 // Stepper Pins
 const int stepPin = 5;
 const int dirPin = 4;
-const int mode0Pin = 7;
-const int mode1Pin = 8;
-const int mode2Pin = 9;
+const int mode0Pin = A2;
+const int mode1Pin = A1;
+const int mode2Pin = A0;
 
 // Touch probe pin
 const int probePin = 13;
